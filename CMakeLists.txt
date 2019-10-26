@@ -11,6 +11,7 @@ aux_source_directory(src/Automaton SRCS)
 aux_source_directory(src/Network SRCS)
 aux_source_directory(src/Protocol SRCS)
 aux_source_directory(src/SearchEngine SRCS)
+aux_source_directory(src/ThreadPool SRCS)
 
 add_executable(mm ${SRCS})
 
