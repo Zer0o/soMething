@@ -3,6 +3,8 @@
 #include <atomic>
 #include <condition_variable>
 #include <list>
+#include <map>
+#include <mutex>
 #include <string>
 #include <thread>
 #include <vector>
@@ -46,16 +48,20 @@ class ThreadInfo;
 class ThreadPool
 {
 public:
-    ThreadPool(std::string pool_name, size_t thread_num);
+    ThreadPool(std::string pool_name, size_t max_thread_num, size_t max_queue_num);
     virtual ~ThreadPool() {}
 
-    void addTask(Task t);
+    int addTask(Task t);
 
+    std::string name() const { return _name; }
     bool running() const { return _running; }
+    bool quit() const { return _quit; }
     bool taskEmpty() const { return waiting_list.empty(); }
     bool doneTaskEmpty() const { return done_list.empty(); }
 
     void run(ThreadInfo *info);
+
+    void destroy();
 
 protected:
     Task getTask();
@@ -64,7 +70,7 @@ protected:
     Task getDoneTask();
 
 protected:
-    std::string name;
+    std::string _name;
     std::vector<std::thread*> consumer_threads;
     std::mutex waiting_mutex;
     std::condition_variable waiting_cv;
@@ -88,4 +94,19 @@ public:
     ThreadPool *pool;
     bool busy;
     size_t threadIndex;
+};
+
+class ThreadWorker
+{
+public:
+    ThreadWorker() : running(true) {}
+    ~ThreadWorker();
+
+    ThreadPool *newThreadPool(std::string poolName, size_t max_thread_num, size_t max_queue_num);
+    int freeThreadPool(std::string poolName);
+
+protected:
+    std::map<std::string, ThreadPool*> threadPools;
+    std::mutex mutex;
+    std::atomic_bool running;
 };

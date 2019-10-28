@@ -1,5 +1,7 @@
 #include "ThreadPool.h"
 
+#include <iostream>
+
 void consumer_run(void *arg)
 {
     ThreadInfo *info = (ThreadInfo *)arg;
@@ -9,12 +11,12 @@ void consumer_run(void *arg)
     }
 }
 
-ThreadPool::ThreadPool(std::string pool_name, size_t thread_num)
-    : name(pool_name), nextTaskId(0)
+ThreadPool::ThreadPool(std::string pool_name, size_t max_thread_num, size_t max_queue_num)
+    : _name(pool_name), nextTaskId(0)
 {
-    consumer_threads.resize(thread_num);
+    consumer_threads.resize(max_thread_num);
 
-    for (size_t i = 0; i < thread_num; ++i)
+    for (size_t i = 0; i < max_thread_num; ++i)
     {
         ThreadInfo *ti = new ThreadInfo(this, i); //todo:delete in thread
         std::thread *t = new std::thread(consumer_run, ti);
@@ -25,25 +27,39 @@ ThreadPool::ThreadPool(std::string pool_name, size_t thread_num)
     _quit = false;
 }
 
-void ThreadPool::addTask(Task t)
+int ThreadPool::addTask(Task t)
 {
     std::unique_lock<std::mutex> lock(waiting_mutex);
     t.id = nextTaskId++;
     waiting_list.push_back(t);
     waiting_cv.notify_one();
+
+    return 0;
 }
 
 void ThreadPool::run(ThreadInfo *info)
 {
     Task t = getTask(); 
 
-    info->busy = true;
     t.run(t.task_arg);
-    t.done = true;
     //t.finish(t.task_arg);
-    info->busy = false;
     
     //addDoneTask(t);
+}
+
+void thread_exit_task(void *arg)
+{
+    pthread_exit(0);
+}
+
+void ThreadPool::destroy()
+{
+    _quit = true;
+    Task exit_task(thread_exit_task, thread_exit_task, NULL);
+    for (auto tp : consumer_threads)
+    {
+        addTask(exit_task);
+    }
 }
 
 Task ThreadPool::getTask()
@@ -70,4 +86,51 @@ Task ThreadPool::getDoneTask()
     t = done_list.front();
     done_list.pop_front();
     return t;
+}
+
+ThreadWorker::~ThreadWorker()
+{
+    std::cout << "threadworker free" << std::endl;
+    running = false;
+    std::unique_lock<std::mutex> lock(mutex);
+    for (auto iter : threadPools)
+    {
+        ThreadPool *pool = iter.second;
+        if (pool) pool->destroy();
+    }
+}
+
+ThreadPool *ThreadWorker::newThreadPool(std::string poolName, size_t max_thread_num, size_t max_queue_num)
+{
+    if (!running) return NULL;
+
+    std::unique_lock<std::mutex> lock(mutex);
+    auto iter = threadPools.find(poolName);
+    if (iter != threadPools.end())
+    {
+        return iter->second;
+    }
+
+    ThreadPool *pool = new ThreadPool(poolName, max_thread_num, max_queue_num);
+    threadPools[poolName] = pool;
+    return pool;
+}
+
+int ThreadWorker::freeThreadPool(std::string poolName)
+{
+    ThreadPool *pool = NULL;
+    {
+        std::unique_lock<std::mutex> lock(mutex);
+        auto iter = threadPools.find(poolName);
+        if (iter == threadPools.end())
+        {
+            return -1;
+        }
+
+        pool = iter->second;
+    }
+
+    if (pool) pool->destroy();
+
+    return 0;
 }
