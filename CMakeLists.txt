@@ -5,14 +5,14 @@ set(CMAKE_INSTALL_PREFIX ../bin)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-aux_source_directory(. SRCS)
 aux_source_directory(src SRCS)
-aux_source_directory(src/Automaton SRCS)
-aux_source_directory(src/Network SRCS)
-aux_source_directory(src/Protocol SRCS)
-aux_source_directory(src/SearchEngine SRCS)
-aux_source_directory(src/ThreadPool SRCS)
+file(GLOB dirs src/*)
+FOREACH(dir ${dirs})
+    IF (IS_DIRECTORY ${dir})
+        aux_source_directory(${dir} SRCS)
+    ENDIF()
+ENDFOREACH()
 
 add_executable(mm ${SRCS})
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -O3 -g -minline-all-stringops -pipe -Wall -Werror -Wno-deprecated -Wno-unused-variable -Werror=strict-aliasing -lpthread -levent")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -O3 -g -minline-all-stringops -pipe -Wall -Werror -Wno-deprecated -Wno-unused-variable -Werror=strict-aliasing -lpthread -ldl -levent")

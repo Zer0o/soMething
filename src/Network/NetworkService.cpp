@@ -15,6 +15,7 @@ bool NetworkService::init()
     _sin.sin_addr.s_addr = 0;
     _sin.sin_port = htons(_port);
 
+    msgParsed = new Message;
     step = MessageDealStep::START;
 
     return true;
@@ -29,9 +30,9 @@ void NetworkService::listener_cb(evconnlistener *listener, evutil_socket_t fd,
     bufferevent *bev =  bufferevent_socket_new(cbarg->base, fd,  
                                                BEV_OPT_CLOSE_ON_FREE);  
   
-    bufferevent_setcb(bev, NetworkService::read_cb, NetworkService::write_cb, NULL, cbarg->service); 
+    bufferevent_setcb(bev, NetworkService::read_cb, NetworkService::write_cb, NetworkService::event_cb, cbarg->service); 
     bufferevent_setwatermark(bev, EV_READ, sizeof(Message), sizeof(Message));
-    bufferevent_enable(bev, EV_READ | EV_PERSIST); 
+    bufferevent_enable(bev, EV_READ);
 }
 
 void NetworkService::read_cb(bufferevent *bev, void *arg)
@@ -41,28 +42,40 @@ void NetworkService::read_cb(bufferevent *bev, void *arg)
     {
     case START:
     {
-        ssize_t len = bufferevent_read(bev, &service->msgParsed, sizeof(Message));
-        if (len < 0 || (unsigned int)len != sizeof(Message) || !service->msgParsed.valid())
+        size_t len = bufferevent_read(bev, &service->msgParsed, sizeof(Message));
+        if (len == 0)
+        {
+            std::cout << "read len = 0, close" << std::endl;
+            goto CLOSE;
+        }
+        if (len != sizeof(Message) || !service->msgParsed->valid())
         {
             std::cout << "message format valid" << std::endl;
             return;
         }
 
-        std::cout << "recv len = " << service->msgParsed.len << std::endl;
+        std::cout << "recv len = " << service->msgParsed->len << std::endl;
 
-        if (service->msgParsed.len > 0)
+        if (service->msgParsed->len > 0)
         {
             service->step = MESSAGE_HEAD_GET;
-            bufferevent_setwatermark(bev, EV_READ, service->msgParsed.len, service->msgParsed.len);
+            bufferevent_setwatermark(bev, EV_READ, service->msgParsed->len, service->msgParsed->len);
         }
 
         break;
     }
     case MESSAGE_HEAD_GET:
     {
-        char *p = (char*)malloc(service->msgParsed.len+1);
-        ssize_t len = bufferevent_read(bev, p, service->msgParsed.len);
-        if (len < service->msgParsed.len)
+        //use memory pool
+        char *p = (char*)malloc(service->msgParsed->len+1);
+        size_t len = bufferevent_read(bev, p, service->msgParsed->len);
+        if (len == 0)
+        {
+            std::cout << "read len = 0, close" << std::endl;
+            goto CLOSE;
+        }
+
+        if (len < (size_t)service->msgParsed->len)
         {
             std::cout << "buffer not enough" << std::endl;
             return;
@@ -72,12 +85,15 @@ void NetworkService::read_cb(bufferevent *bev, void *arg)
 
         std::cout << "data = " << p << std::endl;
 
-        service->msgParsed.data = p;
+        service->msgParsed->data = p;
 
+#if 0
         {
             std::unique_lock<std::mutex> lock(service->request_mutex);
             service->request_messages.push(std::move(service->msgParsed));
+            service->request_cv.notify_one();
         }
+#endif
 
         service->step = START;
 
@@ -86,10 +102,14 @@ void NetworkService::read_cb(bufferevent *bev, void *arg)
         break;
     }
     }
+CLOSE:
+    return ;
 }
 
 void NetworkService::write_cb(bufferevent *bev, void *arg)
 {
+    std::cout << "write " << std::endl;
+
     NetworkService *service = (NetworkService*)arg;
     std::unique_lock<std::mutex> lock(service->response_mutex);
     service->response_cv.wait(lock, [service] { return !service->response_messages.empty(); });
@@ -97,37 +117,22 @@ void NetworkService::write_cb(bufferevent *bev, void *arg)
     //send message
 }
 
-#if 0
-void NetworkService::accept_cb(int fd, short events, void *arg)
+void NetworkService::event_cb(struct bufferevent *bev, short event, void *arg)
 {
-    evutil_socket_t sockfd;
- 
-    struct sockaddr_in client;
-    socklen_t len = sizeof(client);
- 
-    sockfd = ::accept(fd, (struct sockaddr*)&client, &len );
-
-    std::cout << "server accepted connect." << std::endl;
- 
-    struct event_base* base = (event_base*)arg;
- 
-    struct event *ev = event_new(NULL, -1, 0, NULL, NULL);
-    event_assign(ev, base, sockfd, EV_READ | EV_PERSIST,
-                 NetworkService::read_cb, (void*)ev);
- 
-    event_add(ev, NULL);
-}
-
-void NetworkService::read_cb(int fd, short events, void *arg)
-{
-    Message m;
-    struct event *ev = (struct event*)arg;
-    ssize_t len = read(fd, &m, sizeof(Message));
-    if (len < 0 || (unsigned int)len < sizeof(Message) || !m.valid())
+    NetworkService *service = (NetworkService*)arg;
+    if (event & BEV_EVENT_EOF)
     {
-        return;
+        std::cout << "eof." << std::endl;
+        bufferevent_free(bev);
     }
-
-    std::cout << "recv len = " << len << std::endl;
+    else if (event & BEV_EVENT_TIMEOUT)
+    {
+        std::cout << "service timeout." << std::endl;
+        bufferevent_free(bev);
+    }
+    else if (event & BEV_EVENT_ERROR)
+    {
+        std::cout << "service error." << std::endl;
+        bufferevent_free(bev);
+    }
 }
-#endif

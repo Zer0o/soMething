@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Message.h"
+#include "../MessageEngine/Message.h"
 
 #include <event.h>
 #include <event2/listener.h>
@@ -17,14 +17,14 @@ public:
 
     virtual bool init();
 
-    struct sockaddr_in getSin() const { return _sin; }
+    struct sockaddr_in *getSin() { return &_sin; }
+    int getPort() const { return _port; }
 
     static void listener_cb(evconnlistener *listener, evutil_socket_t fd,  
                  struct sockaddr *sock, int socklen, void *arg);
     static void read_cb(bufferevent *bev, void *arg);
     static void write_cb(bufferevent *bev, void *arg);
-    //static void accept_cb(int fd, short events, void *arg);
-    //static void read_cb(int fd, short events, void *arg);
+    static void event_cb(struct bufferevent *bev, short event, void *arg);
 
 protected:
     int _port;
@@ -37,7 +37,7 @@ protected:
     };
 
     enum MessageDealStep step;
-    Message msgParsed;
+    Message *msgParsed;
 
     std::queue<Message> request_messages;
     std::mutex request_mutex;

@@ -19,6 +19,7 @@ public:
 
     std::string getIp() const { return _connect_ip; }
     int getPort() const { return _connect_port; }
+    struct sockaddr_in *getSockaddrin() { return &server_addr;}
 
 protected:
     int _fd;
@@ -26,4 +27,5 @@ protected:
     int _connect_port;
     std::list<std::string> data;
 
+    struct sockaddr_in server_addr;
 };

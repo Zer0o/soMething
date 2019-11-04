@@ -6,6 +6,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <string.h>
+#include <iostream>
 
 Engine::Engine()
 {
@@ -14,14 +15,21 @@ Engine::Engine()
 
 void Engine::addService(NetworkService *service)
 {
+    if (!service || !service->init())
+    {
+        return;
+    }
+
     NetworkServiceCallbackArg *arg = new NetworkServiceCallbackArg(base, service);
 
-    struct sockaddr_in sin = service->getSin();
+    struct sockaddr_in *sin = service->getSin();
     evconnlistener *listener  
             = evconnlistener_new_bind(base, NetworkService::listener_cb, arg,  
                                       LEV_OPT_REUSEABLE|LEV_OPT_CLOSE_ON_FREE,  
-                                      10, (struct sockaddr *)&sin,  
+                                      10, (struct sockaddr *)sin,  
                                       sizeof(struct sockaddr_in));
+
+    std::cout << "service listening on port " << service->getPort() << std::endl;
 
     //struct event* ev_listen = event_new(base, service->getFd(), EV_READ | EV_PERSIST,
     //                                    NetworkService::accept_cb, base);
@@ -30,19 +38,16 @@ void Engine::addService(NetworkService *service)
 
 void Engine::addClient(NetworkClient *client)
 {
-    struct sockaddr_in server_addr;
- 
-    memset(&server_addr, 0, sizeof(server_addr) );
- 
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(client->getPort());
-    inet_aton(client->getIp().c_str(), &server_addr.sin_addr);
-
+    if (!client || !client->init())
+    {
+        return;
+    }
+    
     struct bufferevent* bev = bufferevent_socket_new(base, -1,
                                                      BEV_OPT_CLOSE_ON_FREE);
 
-    bufferevent_socket_connect(bev, (struct sockaddr *)&server_addr,
-                               sizeof(server_addr));
+    bufferevent_socket_connect(bev, (struct sockaddr*)client->getSockaddrin(),
+                               sizeof(struct sockaddr_in));
  
     bufferevent_setcb(bev, NetworkClient::read_cb, 
         NetworkClient::write_cb, NetworkClient::event_cb, (void*)client);
