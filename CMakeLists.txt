@@ -15,4 +15,4 @@ ENDFOREACH()
 
 add_executable(mm ${SRCS})
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -O3 -g -minline-all-stringops -pipe -Wall -Werror -Wno-deprecated -Wno-unused-variable -Werror=strict-aliasing -lpthread -ldl -levent")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -O3 -g -minline-all-stringops -pipe -Wall -Werror -Wno-deprecated -Wno-unused-variable -Werror=strict-aliasing -lpthread -ldl -levent -lprotobuf")

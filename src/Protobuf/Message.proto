@@ -1,0 +1,43 @@
+package msg;
+
+message PingResponse
+{
+    required uint32 t = 1;
+}
+
+message Command
+{
+    required string commandname = 1;
+    required string filepath = 2;
+    required string funcname = 3;
+    required string commandhelp = 4;
+}
+
+message AddCommandsRequest
+{
+    repeated Command command = 1;
+}
+
+message GetCommandsResponse
+{
+    repeated Command command = 1;
+}
+
+message ExeCommandRequest
+{
+    required string commandname = 1;
+}
+
+message FileUpload
+{
+    required string filepath = 1;
+    required uint64 filepos  = 2;
+}
+
+message Message
+{
+    optional AddCommandsRequest  acr = 1;
+    optional GetCommandsResponse gcr = 2;
+    optional ExeCommandRequest   ecr = 3;
+    optional FileUpload           fu = 4;
+}

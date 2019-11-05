@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../MessageEngine/Message.h"
+#include "../MessageEngine/MessageEngine.h"
 
 #include <event.h>
 #include <event2/listener.h>
@@ -38,6 +39,8 @@ protected:
 
     enum MessageDealStep step;
     Message *msgParsed;
+
+    MessageEngine *messageEngine;
 
     std::queue<Message> request_messages;
     std::mutex request_mutex;

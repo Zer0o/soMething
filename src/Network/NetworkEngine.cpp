@@ -30,10 +30,6 @@ void Engine::addService(NetworkService *service)
                                       sizeof(struct sockaddr_in));
 
     std::cout << "service listening on port " << service->getPort() << std::endl;
-
-    //struct event* ev_listen = event_new(base, service->getFd(), EV_READ | EV_PERSIST,
-    //                                    NetworkService::accept_cb, base);
-    //event_add(ev_listen, NULL);
 }
 
 void Engine::addClient(NetworkClient *client)

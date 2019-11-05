@@ -7,13 +7,16 @@
 enum MessageType
 {
     HEARTBEAT = 0,
-    HEARTBEAT_ACK,
     PING_REQUEST,
     PING_RESPONSE,
+    GET_COMMANDS_REQUEST,
+    GET_COMMANDS_RESPONSE,
+    ADD_COMMANDS_REQUEST,
+    ADD_COMMANDS_RESPONSE,
+    EXE_COMMANDS_REQUEST,
+    EXE_COMMANDS_RESPONSE,
     DATA_SEND,
-    GET_COMMAND,
-    ADD_COMMAND,
-    EXE_COMMAND,
+    FILE_UPLOAD,
 };
 
 #pragma pack(1)
@@ -31,6 +34,7 @@ public:
     int message_type;
     int message_id;
     int len;
+    int pbLen;
     void *data;
 };
 #pragma pack()

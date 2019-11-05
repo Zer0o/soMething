@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../MessageEngine/Message.h"
+
 #include <event.h>
 #include <string>
 #include <list>
@@ -21,11 +23,17 @@ public:
     int getPort() const { return _connect_port; }
     struct sockaddr_in *getSockaddrin() { return &server_addr;}
 
+    void addMessage(Message *m)
+    {
+        _msgList.push_back(m);
+    }
+
 protected:
     int _fd;
     std::string _connect_ip;
     int _connect_port;
-    std::list<std::string> data;
+    //std::list<std::string> data;
+    std::list<Message *> _msgList;
 
     struct sockaddr_in server_addr;
 };

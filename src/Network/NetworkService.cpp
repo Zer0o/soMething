@@ -18,6 +18,11 @@ bool NetworkService::init()
     msgParsed = new Message;
     step = MessageDealStep::START;
 
+    ThreadPool *pool = new ThreadPool("service_message_deal", 1, 1);
+
+    messageEngine = new MessageEngine;
+    messageEngine->setThreadPool(pool);
+
     return true;
 }
 
@@ -42,12 +47,13 @@ void NetworkService::read_cb(bufferevent *bev, void *arg)
     {
     case START:
     {
-        size_t len = bufferevent_read(bev, &service->msgParsed, sizeof(Message));
+        size_t len = bufferevent_read(bev, service->msgParsed, sizeof(Message));
         if (len == 0)
         {
             std::cout << "read len = 0, close" << std::endl;
             goto CLOSE;
         }
+
         if (len != sizeof(Message) || !service->msgParsed->valid())
         {
             std::cout << "message format valid" << std::endl;
@@ -67,7 +73,7 @@ void NetworkService::read_cb(bufferevent *bev, void *arg)
     case MESSAGE_HEAD_GET:
     {
         //use memory pool
-        char *p = (char*)malloc(service->msgParsed->len+1);
+        char *p = (char*)malloc(service->msgParsed->len*sizeof(char));
         size_t len = bufferevent_read(bev, p, service->msgParsed->len);
         if (len == 0)
         {
@@ -81,19 +87,11 @@ void NetworkService::read_cb(bufferevent *bev, void *arg)
             return;
         }
 
-        p[len] = '\0';
-
-        std::cout << "data = " << p << std::endl;
-
         service->msgParsed->data = p;
 
-#if 0
-        {
-            std::unique_lock<std::mutex> lock(service->request_mutex);
-            service->request_messages.push(std::move(service->msgParsed));
-            service->request_cv.notify_one();
-        }
-#endif
+        service->messageEngine->addRequestMsg(service->msgParsed);
+
+        service->msgParsed = new Message;
 
         service->step = START;
 
