@@ -6,11 +6,86 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <string.h>
-#include <iostream>
+#include <iostream> 
+
+static const char *welcome = 
+"Welcome to clish, the client terminal.\n"
+"\n"
+"Type:  'help' for help with commands\n"
+"       'quit or exit' to quit\n";
+
+static const char *clish = "clish>";
+
+struct help
+{
+    const char *command;
+    const char *help;
+} helpList[] = 
+{
+    {"addCommand", 
+     "  arg1: command name"},
+    {"connnect",
+     "  arg1: server ip\n"
+     "  arg2: server port"},
+    {"exeCommand",
+     "  arg1: command name\n"
+     "  arg2: command arg"},
+    {"list", 
+     "  list all commands"},
+    {"upload",
+     "  arg1: filepath to upload\n"
+     "  arg2: server to upload"},
+};
+
+void stdin_read_cb(struct bufferevent* bev, void *arg)
+{
+    char a[1024];
+    size_t sz = bufferevent_read(bev, a, 1024);
+    if (sz < 1) return;
+    a[sz-1] = '\0';
+
+    if (!strcmp(a, "quit"))
+    {
+        exit(0);
+    }
+    else if (!strcmp(a, "exit"))
+    {
+        exit(0);
+    }
+    else if (!strcmp(a, "help"))
+    {
+        for (auto h : helpList)
+        {
+            std::cout << h.command << std::endl;
+            std::cout << h.help << std::endl;
+        }
+    }
+    else
+    {
+        std::cout << "no such command" << std::endl;
+    }
+
+    std::cout << std::endl;
+    std::cout << clish;
+    std::cout.flush();
+}
+
+void stdout_write_cb(struct bufferevent* bev, void *arg)
+{
+    //std::cout << "hello" << std::endl;
+}
 
 Engine::Engine()
 {
     base = event_base_new();
+
+    struct bufferevent* stdinbev = bufferevent_socket_new(base, -1, BEV_OPT_CLOSE_ON_FREE);
+    bufferevent_setfd(stdinbev, 0);
+    bufferevent_setcb(stdinbev, stdin_read_cb, 
+        stdout_write_cb, NULL, this);
+    bufferevent_enable(stdinbev, EV_READ | EV_WRITE | EV_PERSIST);
+    bufferevent_write(stdinbev, welcome, strlen(welcome));
+    bufferevent_write(stdinbev, clish, strlen(clish));
 }
 
 void Engine::addService(NetworkService *service)
@@ -38,16 +113,10 @@ void Engine::addClient(NetworkClient *client)
     {
         return;
     }
-    
-    struct bufferevent* bev = bufferevent_socket_new(base, -1,
-                                                     BEV_OPT_CLOSE_ON_FREE);
 
-    bufferevent_socket_connect(bev, (struct sockaddr*)client->getSockaddrin(),
-                               sizeof(struct sockaddr_in));
- 
-    bufferevent_setcb(bev, NetworkClient::read_cb, 
-        NetworkClient::write_cb, NetworkClient::event_cb, (void*)client);
-    bufferevent_enable(bev, EV_READ | EV_WRITE | EV_PERSIST);
+    client->setBase(base);
+
+    NetworkClient::new_client(0, 0, client);
 }
 
 void Engine::run()

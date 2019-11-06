@@ -8,6 +8,45 @@ make
 ./mm
 ```
 
+## Command
+
+```
+Welcome to clish, the client terminal.
+
+Type:  'help' for help with commands
+       'quit or exit' to quit
+clish>
+```
+
+connnect $ip $port
+```
+clish>connect 127.0.0.1 9999
+```
+
+getservercommand $serverindex
+```
+clish>getservercommand 0
+index ip           port
+0     192.168.1.2  6666
+------------------------
+commands
+```
+
+listserver
+```
+clish>listserver
+index  ip           port  status
+0      192.168.1.2  6666  CONNECTED
+1      192.168.1.2  7777  RECONNECTING(2)
+2      192.168.1.3  6666  CLOSE
+3      192.168.1.4  6666  FAILED
+```
+
+upload $filepath $serverindex
+```
+clish>upload libaaa.so 0
+```
+
 ## ThreadPool
 
 example:

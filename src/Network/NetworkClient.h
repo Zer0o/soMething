@@ -15,6 +15,8 @@ public:
 
     virtual bool init();
 
+    static void new_client(int, short, void *arg);
+
     static void read_cb(struct bufferevent* bev, void* arg);
     static void write_cb(struct bufferevent* bev, void* arg);
     static void event_cb(struct bufferevent *bev, short event, void *arg);
@@ -22,6 +24,8 @@ public:
     std::string getIp() const { return _connect_ip; }
     int getPort() const { return _connect_port; }
     struct sockaddr_in *getSockaddrin() { return &server_addr;}
+
+    void setBase(struct event_base *b) { base = b; }
 
     void addMessage(Message *m)
     {
@@ -36,4 +40,5 @@ protected:
     std::list<Message *> _msgList;
 
     struct sockaddr_in server_addr;
+    struct event_base *base;
 };

@@ -165,7 +165,6 @@ Message *MessageEngine::exeSoFunction(const std::string &so_name, const std::str
     if (!handle)
     {
         std::cout << "dlopen failed" << std::endl;
-        dlclose(handle);
         return NULL;
     }
 
