@@ -1,10 +1,24 @@
 #pragma once
 
+#include "../File/FileManage.h"
 #include "../MessageEngine/Message.h"
+
+#include <iostream>
 
 #include <event.h>
 #include <string>
 #include <list>
+
+class ServerInfo
+{
+public:
+    ServerInfo(std::string ip, int port, int status)
+     : _ip(ip), _port(port), _status(status) {}
+
+    std::string _ip;
+    int _port;
+    int _status;
+};
 
 class NetworkClient
 {
@@ -30,6 +44,13 @@ public:
     void addMessage(Message *m)
     {
         _msgList.push_back(m);
+        bufferevent_enable(bev, EV_WRITE);
+    }
+
+    ServerInfo getServerInfo() const
+    {
+        ServerInfo si(_connect_ip, _connect_port, 0);
+        return std::move(si);
     }
 
 protected:
@@ -41,4 +62,5 @@ protected:
 
     struct sockaddr_in server_addr;
     struct event_base *base;
+    struct bufferevent* bev;
 };

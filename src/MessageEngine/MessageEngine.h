@@ -29,14 +29,4 @@ protected:
     time_t _lastHeartbeat;
 
     std::map<std::string, msg::Command> _commandMap;
-
-#if 0
-    std::queue<Message*> request_messages;
-    std::mutex request_mutex;
-    std::condition_variable request_cv;
-
-    std::queue<Message> response_messages;
-    std::mutex response_mutex;
-    std::condition_variable response_cv;
-#endif
 };

@@ -22,12 +22,12 @@ bool NetworkClient::init()
 void NetworkClient::new_client(int, short, void *arg)
 {
     NetworkClient *client = (NetworkClient*)arg;
-    struct bufferevent* bev = bufferevent_socket_new(client->base, -1,
+    client->bev = bufferevent_socket_new(client->base, -1,
                                                      BEV_OPT_CLOSE_ON_FREE);
-    bufferevent_socket_connect(bev, (struct sockaddr*)client->getSockaddrin(), sizeof(struct sockaddr));
-    bufferevent_setcb(bev, NetworkClient::read_cb, 
+    bufferevent_socket_connect(client->bev, (struct sockaddr*)client->getSockaddrin(), sizeof(struct sockaddr));
+    bufferevent_setcb(client->bev, NetworkClient::read_cb, 
     NetworkClient::write_cb, NetworkClient::event_cb, (void*)client);
-    bufferevent_enable(bev, EV_READ | EV_WRITE | EV_PERSIST);
+    bufferevent_enable(client->bev, EV_READ | EV_WRITE | EV_PERSIST);
 }
 
 void NetworkClient::read_cb(struct bufferevent *bev, void *arg)
@@ -38,17 +38,30 @@ void NetworkClient::read_cb(struct bufferevent *bev, void *arg)
 void NetworkClient::write_cb(struct bufferevent *bev, void *arg)
 {
     NetworkClient *client = (NetworkClient*)arg;
-    std::cout << "enable write" << std::endl;
+
+    //std::cout << "write cb" << std::endl;
 
     if (!client->_msgList.empty())
     {
         Message *p = client->_msgList.front();
         client->_msgList.pop_front();
-        Message *dst = (Message*)malloc(sizeof(Message)+p->len*sizeof(char));
-        *dst = *p;
-        memcpy((char*)dst+sizeof(Message), p->data, p->len);
 
-        bufferevent_write(bev, dst, sizeof(Message)+p->len);
+        if (p->message_type == FILE_UPLOAD)
+        {
+            struct evbuffer *buffer = evbuffer_new();
+            evbuffer_add(buffer, p, sizeof(Message)+p->pbLen);
+            uint64_t *fv = (uint64_t*)((char*)p+sizeof(Message)+p->pbLen);
+            evbuffer_add_file(buffer, *fv, *(fv+1), *(fv+2));
+            bufferevent_write_buffer(bev, buffer);
+        }
+        else
+        {
+            //Message *dst = (Message*)malloc(sizeof(Message)+p->len*sizeof(char));
+            //*dst = *p;
+            //memcpy((char*)dst+sizeof(Message), p->data, p->len);
+
+            bufferevent_write(bev, p, sizeof(Message)+p->len);
+        }
     }
 }
 
@@ -58,8 +71,9 @@ void NetworkClient::event_cb(struct bufferevent *bev, short event, void *arg)
     if (event & BEV_EVENT_CONNECTED)
     {
         //std::cout << "connected." << std::endl;
-        Message *m = new Message(0, MessageType::PING_REQUEST, 0);
-        bufferevent_write(bev, m, sizeof(Message));
+        //Message *m = new Message(0, MessageType::PING_REQUEST, 0);
+        //bufferevent_write(bev, m, sizeof(Message));
+        //bufferevent_enable(bev, EV_WRITE);
     }
     else if (event & BEV_EVENT_TIMEOUT)
     {

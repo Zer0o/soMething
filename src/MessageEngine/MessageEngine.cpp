@@ -34,12 +34,6 @@ MessageEngine::MessageEngine()
 
 void MessageEngine::addRequestMsg(Message *m)
 {
-#if 0
-    std::unique_lock<std::mutex> lock(request_mutex);
-    request_messages.push(m);
-    request_cv.notify_one();
-#endif
-
     MessageArg *arg = new MessageArg(m, this);
 
     Task task(deal, NULL, arg);
@@ -94,11 +88,14 @@ void MessageEngine::dealMessage(Message *m)
             break;
         }
 
+        //std::cout << "pblen = " << m->pbLen << std::endl;
         const msg::AddCommandsRequest &acr = msg.acr();
+        //std::cout << "arc size = " << acr.command_size() << std::endl;
         for (int i = 0; i < acr.command_size(); ++i)
         {
             const msg::Command &command = acr.command(i);
             const std::string &commandname = command.commandname();
+            std::cout << "add command " << commandname << std::endl;
             _commandMap[commandname] = acr.command(i);
         }
         break;
@@ -161,10 +158,11 @@ void MessageEngine::dealMessage(Message *m)
 
 Message *MessageEngine::exeSoFunction(const std::string &so_name, const std::string &func_name, void *arg)
 {
-    void *handle = dlopen(so_name.c_str(), RTLD_LAZY);
+    std::string str = "./" + so_name;
+    void *handle = dlopen(str.c_str(), RTLD_LAZY);
     if (!handle)
     {
-        std::cout << "dlopen failed" << std::endl;
+        std::cout << "dlopen failed, " << str.c_str() << std::endl;
         return NULL;
     }
 

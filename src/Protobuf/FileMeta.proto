@@ -1,0 +1,15 @@
+package meta;
+
+message ExistBlock
+{
+    repeated uint64 pos = 1;
+}
+
+message FileTransfer
+{
+    required string filename   = 1;
+    required uint64 filesize   = 2;
+    optional string filemd5    = 3;
+    required uint64 blocksize  = 4;
+    required ExistBlock blocks = 5;
+}
